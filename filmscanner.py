@@ -1,14 +1,17 @@
 import pickle
-import math
-import threading
+import logging
 
 import cv2
-import numpy as np
 
 import PySimpleGUI as sg
 from Video import Video
+from ffmpeg import FFmpeg
 
-sg.theme('Black')   # Add a touch of color
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s %(thread)s:  %(message)s',
+                    handlers=[logging.StreamHandler()])
+
+sg.theme('Black')
 
 DEFAULT_WIDTH = 960
 DEFAULT_HEIGHT = 640
@@ -17,10 +20,10 @@ defaults = {'topCrop': 0, 'bottomCrop': DEFAULT_HEIGHT, 'leftCrop': 0, 'rightCro
             'houghThresh': 130.0, 'houghGap': 12.0, 'lineLength': 50.0, 'minAngle': 87.0, 'leftTarget': 45.0, 'rightTarget': 45.0, 'activeForPicture': 20.0}
 
 try:
-    print("Loading settings...")
+    logging.info("Loading settings...")
     defaults = pickle.load(open("./settings.pickle", "rb"))
 except:
-    print("No settings found, using defaults.")
+    logging.info("No settings found, using defaults.")
     pass
 
 frame1 = [
@@ -71,6 +74,11 @@ layout = [[sg.Frame('Controls', frame1, font=("Helvetica", 16)),
 
 window = sg.Window('Film Scanner', layout, location=(0, 0), finalize=True)
 
+ff = FFmpeg()
+logging.debug("Starting ffmpeg...")
+ff.start()
+logging.debug("FFmpeg started.")
+
 video = Video('udp://localhost:8080/feed.mjpg?fifo_size=10000000').start()
 
 while True:
@@ -79,9 +87,11 @@ while True:
 
     if event == sg.WINDOW_CLOSED or event == 'Close':
         video.stop()
+        ff.stop()
         break
 
     elif event == 'Save':
+        logging.debug("Saving settings:", values)
         pickle.dump(values, open("./settings.pickle", "wb+"),
                     protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -103,7 +113,4 @@ while True:
 
     window["image"].update(data=imgbytes)
 
-print(values)
-
-# Finish up by removing from the screen
 window.close()

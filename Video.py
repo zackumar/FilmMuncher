@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 import math
-import time
+import logging
 
 
 class Video:
@@ -45,6 +45,10 @@ class Video:
                 (self.grabbed, self.frame) = self.stream.read()
                 if (self.values == {}):
                     continue
+
+                if (self.stream == None or not self.stream.isOpened()):
+                    logging.error('Video stream not opened')
+                    break
 
                 values = self.values
 
@@ -102,19 +106,18 @@ class Video:
                 if (leftActive and rightActive):
                     color = (0, 255, 0)
                     activeCount += 1
+                    logging.debug(activeCount)
                     if (activeCount >= values['activeForPicture']):
                         isPicture = True
 
                     if (isPicture and takePicture):
                         takePicture = False
-                        print('Take Picture')
+                        logging.debug('Take Picture')
 
                 else:
                     isPicture = False
                     takePicture = True
                     activeCount = 0
-
-                # print(isPicture, takePicture)
 
                 cv2.rectangle(self.cdst, leftRect[0],
                               leftRect[1], color, 5)
