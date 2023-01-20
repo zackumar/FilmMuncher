@@ -4,15 +4,14 @@ import logging
 
 #  gphoto2 --capture-movie --stdout --set-config "Camera Output"=PC --set-config "Live View Size"=Large | ffmpeg -i pipe:0 -q:v 2 -listen 1 -fflags nobuffer -f mjpeg udp://localhost:8080/feed.mjpg
 
+gphoto = ['gphoto2', '--capture-movie', '--stdout', '--set-config',
+          '"Camera Output"=PC', '--set-config', '"Live View Size"=Large']
 
-# gphoto = ['gphoto2', '--capture-movie', '--stdout', '--set-config',
-#           '"Camera Output"=PC', '--set-config', '"Live View Size"=Large']
-
-gphoto = ['ffmpeg', '-f', 'lavfi', '-i', 'testsrc=size=960x640:rate=30',
-          '-f', 'mjpeg', 'pipe:1']
+# gphoto = ['ffmpeg', '-f', 'lavfi', '-i', 'testsrc=size=960x640:rate=30',
+#           '-f', 'mjpeg', 'pipe:1']
 
 ffmpeg = ['ffmpeg', '-i', 'pipe:0', '-q:v', '2', '-listen', '1',
-          '-fflags', 'nobuffer', '-f', 'mjpeg', 'udp://localhost:8080/feed.mjpg']
+          '-fflags', 'nobuffer', '-f', 'mjpeg', 'udp://127.0.0.1:8080/feed.mjpg']
 
 
 class FFmpeg:
@@ -33,7 +32,6 @@ class FFmpeg:
 
             if (line.startswith("frame=")):
                 self.running = True
-                logging.debug("Frame")
                 break
 
     def stop(self):
@@ -46,6 +44,8 @@ class FFmpeg:
 
         if self.gphotoProcess:
             logging.debug('Killing gphoto')
-            self.gphotoProcess.send_signal(signal.SIGINT)
+            logging.debug(self.gphotoProcess)
+            # self.gphotoProcess.send_signal(signal.SIGINT)
+            self.gphotoProcess.kill()
             self.gphotoProcess.wait()
             logging.debug('Killed gphoto')

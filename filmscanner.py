@@ -1,5 +1,7 @@
 import pickle
 import logging
+import time
+import signal
 
 import cv2
 
@@ -7,11 +9,21 @@ import PySimpleGUI as sg
 from Video import Video
 from ffmpeg import FFmpeg
 
-logging.basicConfig(level=logging.DEBUG,
+
+logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(thread)s:  %(message)s',
                     handlers=[logging.StreamHandler()])
 
-sg.theme('Black')
+
+def close(signal=None, frame=None):
+    video.stop()
+    time.sleep(0.1)
+    ff.stop()
+    window.close()
+    exit(0)
+
+
+signal.signal(signal.SIGINT, close)
 
 DEFAULT_WIDTH = 960
 DEFAULT_HEIGHT = 640
@@ -25,6 +37,8 @@ try:
 except:
     logging.info("No settings found, using defaults.")
     pass
+
+sg.theme('Black')
 
 frame1 = [
     [sg.Text("Video:", font=("Helvetica", 14))],
@@ -64,7 +78,8 @@ frame1 = [
     [sg.Button('Save', size=(10, 1), pad=(5, 20)), sg.Button(
         'Default', size=(10, 1), pad=(5, 20)), sg.Button('Close')]]
 
-frame2 = [[sg.Image(filename='', key='image')]]
+frame2 = [
+    [sg.Image(filename='', key='image', size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
 
 # # Define the window's contents
 layout = [[sg.Frame('Controls', frame1, font=("Helvetica", 16)),
@@ -72,23 +87,22 @@ layout = [[sg.Frame('Controls', frame1, font=("Helvetica", 16)),
           ]
 
 
-window = sg.Window('Film Scanner', layout, location=(0, 0), finalize=True)
+window = sg.Window('Film Scanner', layout, location=(0, 0),
+                   finalize=True)
 
 ff = FFmpeg()
 logging.debug("Starting ffmpeg...")
 ff.start()
 logging.debug("FFmpeg started.")
 
-video = Video('udp://localhost:8080/feed.mjpg?fifo_size=10000000').start()
+video = Video('udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000').start()
 
 while True:
-    event, values = window.read(timeout=10)
+    event, values = window.read(timeout=1)
     video.values = values
 
     if event == sg.WINDOW_CLOSED or event == 'Close':
-        video.stop()
-        ff.stop()
-        break
+        close()
 
     elif event == 'Save':
         logging.debug("Saving settings:", values)
@@ -96,9 +110,11 @@ while True:
                     protocol=pickle.HIGHEST_PROTOCOL)
 
     viewNum = values['view']
-    imgbytes = cv2.imencode(".png", video.frame)[1].tobytes()
+    imgbytes = None
 
-    if (viewNum == 1):
+    if (viewNum == 0):
+        imgbytes = cv2.imencode(".png", video.frame)[1].tobytes()
+    elif (viewNum == 1):
         imgbytes = cv2.imencode(".png", video.gray)[1].tobytes()
     elif (viewNum == 2):
         imgbytes = cv2.imencode(".png", video.edges)[1].tobytes()
@@ -112,5 +128,3 @@ while True:
         imgbytes = cv2.imencode(".png", video.cropCopy)[1].tobytes()
 
     window["image"].update(data=imgbytes)
-
-window.close()

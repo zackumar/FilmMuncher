@@ -7,10 +7,6 @@ import logging
 
 
 class Video:
-    """
-    Class that continuously gets frames from a VideoCapture object
-    with a dedicated thread.
-    """
 
     def __init__(self, src=0):
         self.stream = cv2.VideoCapture(src)
@@ -131,3 +127,6 @@ class Video:
 
     def stop(self):
         self.stopped = True
+        logging.debug('Releasing video')
+        self.stream.release()
+        logging.debug('Video released')
