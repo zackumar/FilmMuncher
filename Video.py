@@ -39,7 +39,7 @@ class Video:
                 self.stop()
             else:
                 (self.grabbed, self.frame) = self.stream.read()
-                if (self.values == {}):
+                if (self.values == {} or self.values == None):
                     continue
 
                 if (self.stream == None or not self.stream.isOpened()):
@@ -102,7 +102,7 @@ class Video:
                 if (leftActive and rightActive):
                     color = (0, 255, 0)
                     activeCount += 1
-                    logging.debug(activeCount)
+                    # logging.debug(activeCount)
                     if (activeCount >= values['activeForPicture']):
                         isPicture = True
 

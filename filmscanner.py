@@ -10,12 +10,13 @@ from Video import Video
 from ffmpeg import FFmpeg
 
 
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(thread)s:  %(message)s',
                     handlers=[logging.StreamHandler()])
 
 
 def close(signal=None, frame=None):
+    print('Close')
     video.stop()
     time.sleep(0.1)
     ff.stop()
@@ -39,6 +40,7 @@ except:
     pass
 
 sg.theme('Black')
+
 
 frame1 = [
     [sg.Text("Video:", font=("Helvetica", 14))],
@@ -75,6 +77,7 @@ frame1 = [
     [sg.Text("Picture:", font=("Helvetica", 14))],
     [sg.Text("Active for picture"), sg.Slider(range=(0, 255),
                                               orientation='h', size=(15, 15), default_value=defaults['activeForPicture'], key="activeForPicture")],
+    [sg.Button('Capture', size=(10, 1), pad=(5, 20))],
     [sg.Button('Save', size=(10, 1), pad=(5, 20)), sg.Button(
         'Default', size=(10, 1), pad=(5, 20)), sg.Button('Close')]]
 
@@ -90,16 +93,23 @@ layout = [[sg.Frame('Controls', frame1, font=("Helvetica", 16)),
 window = sg.Window('Film Scanner', layout, location=(0, 0),
                    finalize=True)
 
-ff = FFmpeg()
+ff = FFmpeg(scalingFactor=.3)
 logging.debug("Starting ffmpeg...")
 ff.start()
 logging.debug("FFmpeg started.")
 
 video = Video('udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000').start()
 
+
 while True:
-    event, values = window.read(timeout=1)
+    event, values = window.read(timeout=10)
     video.values = values
+
+    if (values):
+        if type(values['bottomCrop']) is int and values['bottomCrop'] > ff.height:
+            window['bottomCrop'].update(ff.height)
+        elif type(values['rightCrop']) is int and values['rightCrop'] > ff.width:
+            window['rightCrop'].update(ff.width)
 
     if event == sg.WINDOW_CLOSED or event == 'Close':
         close()
@@ -109,22 +119,31 @@ while True:
         pickle.dump(values, open("./settings.pickle", "wb+"),
                     protocol=pickle.HIGHEST_PROTOCOL)
 
-    viewNum = values['view']
-    imgbytes = None
+    elif event == 'Capture':
+        ff.takePicture()
 
-    if (viewNum == 0):
-        imgbytes = cv2.imencode(".png", video.frame)[1].tobytes()
-    elif (viewNum == 1):
-        imgbytes = cv2.imencode(".png", video.gray)[1].tobytes()
+    viewNum = values['view']
+
+    testFrame = cv2.resize(video.frame, (960, 640))
+
+    imgbytes = cv2.imencode(".png", testFrame)[1].tobytes()
+    if (viewNum == 1):
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.gray, (960, 640)))[1].tobytes()
     elif (viewNum == 2):
-        imgbytes = cv2.imencode(".png", video.edges)[1].tobytes()
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.edges, (960, 640)))[1].tobytes()
     elif (viewNum == 3):
-        imgbytes = cv2.imencode(".png", video.eDilate)[1].tobytes()
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.eDilate, (960, 640)))[1].tobytes()
     elif (viewNum == 4):
-        imgbytes = cv2.imencode(".png", video.eErode)[1].tobytes()
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.eErode, (960, 640)))[1].tobytes()
     elif (viewNum == 5):
-        imgbytes = cv2.imencode(".png", video.cdst)[1].tobytes()
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.cdst, (960, 640)))[1].tobytes()
     elif (viewNum == 6):
-        imgbytes = cv2.imencode(".png", video.cropCopy)[1].tobytes()
+        imgbytes = cv2.imencode(".png", cv2.resize(
+            video.cropCopy, (960, 640)))[1].tobytes()
 
     window["image"].update(data=imgbytes)
