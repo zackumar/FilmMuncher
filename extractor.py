@@ -20,6 +20,7 @@ class Extractor:
         self.stopped = False
         self.values = {}
 
+        # display copies (so main thread doesn't stutter when working copies are drawing)
         self.cropped = None
         self.gray = None
         self.edges = None
@@ -33,6 +34,7 @@ class Extractor:
         return self
 
     def get(self):
+        logging.debug('Extractor started')
         dKernel = np.ones((7, 7), np.uint8)
         eKernel = np.ones((5, 5), np.uint8)
 
@@ -57,22 +59,22 @@ class Extractor:
                 if (type(values['topCrop']) is not int or type(values['bottomCrop']) is not int or type(values['leftCrop']) is not int or type(values['rightCrop']) is not int or values['topCrop'] > values['bottomCrop'] or values['leftCrop'] > values['rightCrop']):
                     continue
 
-                self.cropped = self.frame[values['topCrop']: values['bottomCrop'],
-                                          values['leftCrop']: values['rightCrop']]
+                cropped = self.frame[values['topCrop']: values['bottomCrop'],
+                                     values['leftCrop']: values['rightCrop']]
 
-                self.cropCopy = 255 - self.cropped.copy()
+                cropCopy = 255 - cropped.copy()
 
-                blur = cv2.GaussianBlur(self.cropped, (5, 5), 0)
+                blur = cv2.GaussianBlur(cropped, (5, 5), 0)
 
-                self.gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
+                gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
-                self.edges = cv2.Canny(self.gray, values['cannyMin'],
-                                       values['cannyMax'], apertureSize=3)
-                self.eDilate = cv2.dilate(self.edges, dKernel)
-                self.eErode = cv2.erode(self.eDilate, eKernel)
-                self.cdst = cv2.cvtColor(self.eErode, cv2.COLOR_GRAY2BGR)
+                edges = cv2.Canny(gray, values['cannyMin'],
+                                  values['cannyMax'], apertureSize=3)
+                eDilate = cv2.dilate(edges, dKernel)
+                eErode = cv2.erode(eDilate, eKernel)
+                cdst = cv2.cvtColor(eErode, cv2.COLOR_GRAY2BGR)
 
-                linesP = cv2.HoughLinesP(self.eErode, 1, np.pi / 180,
+                linesP = cv2.HoughLinesP(eErode, 1, np.pi / 180,
                                          int(values['houghThresh']), None, 50, int(values['houghGap']))
 
                 possibleEdges = []
@@ -95,9 +97,9 @@ class Extractor:
 
                             if (lineLen >= values['lineLength']):
                                 possibleEdges.append(line)
-                                cv2.line(self.cdst, (x1, y1), (x2, y2),
+                                cv2.line(cdst, (x1, y1), (x2, y2),
                                          (0, 0, 255), 3, cv2.LINE_AA)
-                                cv2.line(self.cropCopy, (x1, y1), (x2, y2),
+                                cv2.line(cropCopy, (x1, y1), (x2, y2),
                                          (0, 0, 255), 3, cv2.LINE_AA)
 
                                 if x1 <= values['leftTarget'] and x2 <= values['leftTarget']:
@@ -108,31 +110,40 @@ class Extractor:
                 if (leftActive and rightActive):
                     color = (0, 255, 0)
                     activeCount += 1
-                    # logging.debug(activeCount)
+                    logging.debug(activeCount)
                     if (activeCount >= values['activeForPicture']):
                         isPicture = True
 
-                    if (isPicture and takePicture):
+                    if (isPicture and takePicture and values['takePictures']):
                         takePicture = False
                         logging.debug('Take Picture')
+                        self.camera.takePicture()
 
                 else:
                     isPicture = False
                     takePicture = True
                     activeCount = 0
 
-                cv2.rectangle(self.cdst, leftRect[0],
+                cv2.rectangle(cdst, leftRect[0],
                               leftRect[1], color, 5)
-                cv2.rectangle(self.cdst, rightRect[0],
+                cv2.rectangle(cdst, rightRect[0],
                               rightRect[1], color, 5)
 
-                cv2.rectangle(self.cropCopy, leftRect[0],
+                cv2.rectangle(cropCopy, leftRect[0],
                               leftRect[1], color, 5)
-                cv2.rectangle(self.cropCopy, rightRect[0],
+                cv2.rectangle(cropCopy, rightRect[0],
                               rightRect[1], color, 5)
+
+                self.cropped = cropped
+                self.gray = gray
+                self.edges = edges
+                self.eDilate = eDilate
+                self.eErode = eErode
+                self.cdst = cdst
+                self.cropCopy = cropCopy
 
     def stop(self):
         self.stopped = True
         logging.debug('Releasing video')
-        self.stream.release()
+        # self.stream.release()
         logging.debug('Video released')

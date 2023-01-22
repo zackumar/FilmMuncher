@@ -27,7 +27,7 @@ class Camera:
         self.gphotoCommand = ['gphoto2', '--capture-movie', '--stdout', '--set-config',
                               'Camera Output=PC', '--set-config', 'Live View Size=Large']
         self.ffmpegCommand = ['ffmpeg', '-i', 'pipe:0', '-q:v', '2', '-vf', f'scale={self.width}:{self.height}',
-                              '-fflags', 'nobuffer', '-f', 'mjpeg', 'udp://127.0.0.1:8080/feed.mjpg']
+                              '-fflags', 'nobuffer', '-tune', 'zerolatency', '-f', 'mjpeg', 'udp://127.0.0.1:8080/feed.mjpg']
 
         self.gptotoProcess = None
         self.ffmpegProcess = None
@@ -38,14 +38,13 @@ class Camera:
         logging.debug("Starting ffmpeg...")
 
         self.gphotoProcess = subprocess.Popen(
-            self.gphotoCommand, universal_newlines=True, stdout=subprocess.PIPE, stderr=None)
+            self.gphotoCommand, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         self.ffmpegProcess = subprocess.Popen(
             self.ffmpegCommand, universal_newlines=True, stdin=self.gphotoProcess.stdout, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
         for stdoutLine in self.ffmpegProcess.stdout:
             line = stdoutLine.strip()
-            print(line)
 
             if (line.startswith("frame=")):
                 self.running = True
@@ -72,6 +71,6 @@ class Camera:
         self.stopVideo()
         logging.debug('Taking picture')
         subprocess.run(
-            ['gphoto2', '--capture-image-and-download', '--filename=%H-%M-%S %f.%C', '--set-config', 'Continuous AF=1'])
+            ['gphoto2', '--capture-image-and-download', '--filename=%H:%M:%S %f.%C', '--set-config', 'Continuous AF=1'])
         logging.debug('Picture taken')
         self.startVideo()
