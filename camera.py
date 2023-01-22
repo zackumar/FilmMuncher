@@ -11,7 +11,7 @@ DEFAULT_WIDTH = 960
 DEFAULT_HEIGHT = 640
 
 
-class FFmpeg:
+class Camera:
     def __init__(self, scalingFactor=1):
 
         self.width = int(DEFAULT_WIDTH * scalingFactor)
@@ -21,7 +21,7 @@ class FFmpeg:
         # self.gphotoCommand = ['ffmpeg', '-f', 'lavfi', '-i', 'testsrc=size=960x640:rate=30',
         #                       '-f', 'mjpeg', 'pipe:1']
         self.gphotoCommand = ['gphoto2', '--capture-movie', '--stdout', '--set-config',
-                              '"Camera Output"=PC', '--set-config', '"Live View Size"=Large']
+                              'Camera Output=PC', '--set-config', 'Live View Size=Large']
         self.ffmpegCommand = ['ffmpeg', '-i', 'pipe:0', '-q:v', '2', '-vf', f'scale={self.width}:{self.height}',
                               '-fflags', 'nobuffer', '-f', 'mjpeg', 'udp://127.0.0.1:8080/feed.mjpg']
 
@@ -30,9 +30,11 @@ class FFmpeg:
 
         self.running = False
 
-    def start(self):
+    def startVideo(self):
+        logging.debug("Starting ffmpeg...")
+
         self.gphotoProcess = subprocess.Popen(
-            self.gphotoCommand, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.gphotoCommand, universal_newlines=True, stdout=subprocess.PIPE, stderr=None)
 
         self.ffmpegProcess = subprocess.Popen(
             self.ffmpegCommand, universal_newlines=True, stdin=self.gphotoProcess.stdout, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -45,7 +47,9 @@ class FFmpeg:
                 self.running = True
                 break
 
-    def stop(self):
+        logging.debug("FFmpeg started.")
+
+    def stopVideo(self):
         logging.debug('Killing processes')
         if self.ffmpegProcess:
             logging.debug('Killing ffmpeg')
@@ -61,9 +65,9 @@ class FFmpeg:
             logging.debug('Killed gphoto')
 
     def takePicture(self):
-        self.stop()
+        self.stopVideo()
         logging.debug('Taking picture')
         subprocess.run(
-            ['gphoto2', '--capture-image-and-download', '--filename=%H-%M-%S %f.%C'])
+            ['gphoto2', '--capture-image-and-download', '--filename=%H-%M-%S %f.%C', '--set-config', 'Continuous AF=1'])
         logging.debug('Picture taken')
-        self.start()
+        self.startVideo()

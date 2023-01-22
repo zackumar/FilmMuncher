@@ -7,7 +7,7 @@ import cv2
 
 import PySimpleGUI as sg
 from Video import Video
-from ffmpeg import FFmpeg
+from camera import Camera
 
 
 logging.basicConfig(level=logging.DEBUG,
@@ -19,7 +19,7 @@ def close(signal=None, frame=None):
     print('Close')
     video.stop()
     time.sleep(0.1)
-    ff.stop()
+    camera.stopVideo()
     window.close()
     exit(0)
 
@@ -93,10 +93,8 @@ layout = [[sg.Frame('Controls', frame1, font=("Helvetica", 16)),
 window = sg.Window('Film Scanner', layout, location=(0, 0),
                    finalize=True)
 
-ff = FFmpeg(scalingFactor=.3)
-logging.debug("Starting ffmpeg...")
-ff.start()
-logging.debug("FFmpeg started.")
+camera = Camera(scalingFactor=.3)
+camera.startVideo()
 
 video = Video('udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000').start()
 
@@ -106,10 +104,10 @@ while True:
     video.values = values
 
     if (values):
-        if type(values['bottomCrop']) is int and values['bottomCrop'] > ff.height:
-            window['bottomCrop'].update(ff.height)
-        elif type(values['rightCrop']) is int and values['rightCrop'] > ff.width:
-            window['rightCrop'].update(ff.width)
+        if type(values['bottomCrop']) is int and values['bottomCrop'] > camera.height:
+            window['bottomCrop'].update(camera.height)
+        elif type(values['rightCrop']) is int and values['rightCrop'] > camera.width:
+            window['rightCrop'].update(camera.width)
 
     if event == sg.WINDOW_CLOSED or event == 'Close':
         close()
@@ -120,7 +118,7 @@ while True:
                     protocol=pickle.HIGHEST_PROTOCOL)
 
     elif event == 'Capture':
-        ff.takePicture()
+        camera.takePicture()
 
     viewNum = values['view']
 
