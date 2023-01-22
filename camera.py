@@ -12,6 +12,10 @@ DEFAULT_HEIGHT = 640
 
 
 class Camera:
+    """Camera class to handle gphoto2 and ffmpeg processes
+    :param scalingFactor: Scaling factor for the video stream
+    """
+
     def __init__(self, scalingFactor=1):
 
         self.width = int(DEFAULT_WIDTH * scalingFactor)

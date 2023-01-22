@@ -6,7 +6,7 @@ import signal
 import cv2
 
 import PySimpleGUI as sg
-from Video import Video
+from extractor import Extractor
 from camera import Camera
 
 
@@ -96,7 +96,8 @@ window = sg.Window('Film Scanner', layout, location=(0, 0),
 camera = Camera(scalingFactor=.3)
 camera.startVideo()
 
-video = Video('udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000').start()
+video = Extractor(
+    'udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000', camera).start()
 
 
 while True:

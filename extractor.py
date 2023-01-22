@@ -6,9 +6,15 @@ import math
 import logging
 
 
-class Video:
+class Extractor:
+    """Extracting film frames from a video stream using edge detection
 
-    def __init__(self, src=0):
+    :param src: Video source
+    :param camera: Camera object
+    """
+
+    def __init__(self, src, camera):
+        self.camera = camera
         self.stream = cv2.VideoCapture(src)
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
