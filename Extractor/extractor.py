@@ -13,7 +13,9 @@ class Extractor:
     :param camera: Camera object
     """
 
-    def __init__(self, src, camera):
+    def __init__(self, src, camera, motor):
+        self.src = src
+        self.motor = motor
         self.camera = camera
         self.stream = cv2.VideoCapture(src)
         (self.grabbed, self.frame) = self.stream.read()
@@ -67,8 +69,8 @@ class Extractor:
                     continue
 
                 cropped = self.frame[
-                    values["topCrop"] : values["bottomCrop"],
-                    values["leftCrop"] : values["rightCrop"],
+                    values["topCrop"]: values["bottomCrop"],
+                    values["leftCrop"]: values["rightCrop"],
                 ]
 
                 cropCopy = 255 - cropped.copy()
@@ -168,9 +170,15 @@ class Extractor:
                         isPicture = True
 
                     if isPicture and takePicture and values["takePictures"]:
+                        self.motor.queue.put((0, 0))
                         takePicture = False
                         logging.debug("Take Picture")
+
+                        self.stream.release()
                         self.camera.takePicture()
+                        self.stream = cv2.VideoCapture(self.src)
+
+                        self.motor.queue.put((1, 100))
 
                 else:
                     isPicture = False

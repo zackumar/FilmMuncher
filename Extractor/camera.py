@@ -75,6 +75,7 @@ class Camera:
 
         for stdoutLine in self.ffmpegProcess.stdout:
             line = stdoutLine.strip()
+            print(line)
 
             if line.startswith("frame="):
                 self.running = True

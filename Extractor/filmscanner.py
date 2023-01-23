@@ -1,3 +1,4 @@
+import serial
 import pickle
 import logging
 import time
@@ -8,6 +9,7 @@ import cv2
 import PySimpleGUI as sg
 from extractor import Extractor
 from camera import Camera
+from motor import MotorController
 
 
 logging.basicConfig(
@@ -21,6 +23,7 @@ def close(signal=None, frame=None):
     print("Close")
     video.stop()
     time.sleep(0.5)
+    motor.stop()
     camera.stopVideo()
     window.close()
     exit(0)
@@ -209,7 +212,8 @@ frame1 = [
     ],
 ]
 
-frame2 = [[sg.Image(filename="", key="image", size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
+frame2 = [
+    [sg.Image(filename="", key="image", size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
 
 # Define the window's contents
 layout = [
@@ -225,7 +229,11 @@ window = sg.Window("Film Scanner", layout, location=(0, 0), finalize=True)
 camera = Camera(scalingFactor=0.5)
 camera.startVideo()
 
-video = Extractor("udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000", camera).start()
+motor = MotorController().start()
+
+
+video = Extractor(
+    "udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000", camera, motor).start()
 
 
 while True:
@@ -242,7 +250,7 @@ while True:
         close()
 
     elif event == "Save":
-        logging.debug("Saving settings:", values)
+        logging.debug("Saving settings")
         pickle.dump(
             values, open("./settings.pickle", "wb+"), protocol=pickle.HIGHEST_PROTOCOL
         )
