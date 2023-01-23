@@ -15,10 +15,11 @@ MotorData data;
 void setup()
 {
   Serial.begin(115200);
+
   data.direction = 0;
   data.speed = 0;
 
-  stepper.setMaxSpeed(400.0);
+  stepper.setMaxSpeed(1000.0);
   stepper.setAcceleration(100.0);
   stepper.setSpeed(data.direction * data.speed);
 
@@ -31,8 +32,13 @@ void loop()
   {
     Serial.readBytes((byte *)&data, sizeof(MotorData));
     stepper.stop();
-    if (data.direction != 0)
+    if (data.direction == 0)
     {
+      stepper.disableOutputs();
+    }
+    else
+    {
+      stepper.enableOutputs();
       stepper.setSpeed(data.speed * (int8_t)data.direction);
     }
   }
