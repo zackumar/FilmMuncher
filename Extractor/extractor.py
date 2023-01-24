@@ -41,6 +41,7 @@ class Extractor:
         eKernel = np.ones((5, 5), np.uint8)
 
         activeCount = 0
+        inactiveCount = 0
         isPicture = False
         takePicture = True
 
@@ -165,9 +166,11 @@ class Extractor:
                 if leftActive and rightActive:
                     color = (0, 255, 0)
                     activeCount += 1
-                    logging.debug(activeCount)
-                    if activeCount >= values["activeForPicture"]:
+                    logging.debug(
+                        f'Active Count: {activeCount}, Inactive Count: {inactiveCount}')
+                    if activeCount >= values["activeForPicture"] and inactiveCount > values["inactiveForPicture"]:
                         isPicture = True
+                        inactiveCount = 0
 
                     if isPicture and takePicture and values["takePictures"]:
                         self.motor.queue.put((0, 0))
@@ -178,12 +181,13 @@ class Extractor:
                         self.camera.takePicture()
                         self.stream = cv2.VideoCapture(self.src)
 
-                        self.motor.queue.put((1, 100))
+                        self.motor.queue.put((1, int(values["motorSpeed"])))
 
                 else:
                     isPicture = False
                     takePicture = True
                     activeCount = 0
+                    inactiveCount += 1
 
                 cv2.rectangle(cdst, leftRect[0], leftRect[1], color, 5)
                 cv2.rectangle(cdst, rightRect[0], rightRect[1], color, 5)

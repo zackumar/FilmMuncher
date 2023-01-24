@@ -2,11 +2,6 @@ import subprocess
 import signal
 import logging
 
-#  gphoto2 --capture-movie --stdout --set-config "Camera Output"=PC --set-config "Live View Size"=Large | ffmpeg -i pipe:0 -q:v 2 -listen 1 -fflags nobuffer -f mjpeg udp://localhost:8080/feed.mjpg
-
-# gphoto = ['gphoto2', '--capture-movie', '--stdout', '--set-config',
-#           '"Camera Output"=PC', '--set-config', '"Live View Size"=Large']
-
 DEFAULT_WIDTH = 960
 DEFAULT_HEIGHT = 640
 
@@ -75,7 +70,7 @@ class Camera:
 
         for stdoutLine in self.ffmpegProcess.stdout:
             line = stdoutLine.strip()
-            print(line)
+            logging.debug(line)
 
             if line.startswith("frame="):
                 self.running = True
@@ -98,6 +93,8 @@ class Camera:
             self.gphotoProcess.wait()
             logging.debug("Killed gphoto")
 
+        logging.debug("Killed processes")
+
     def takePicture(self):
         self.stopVideo()
         logging.debug("Taking picture")
@@ -105,7 +102,7 @@ class Camera:
             [
                 "gphoto2",
                 "--capture-image-and-download",
-                "--filename=%H:%M:%S %f.%C",
+                "--filename=%H-%M-%S.%C",
                 "--set-config",
                 "Continuous AF=1",
             ]

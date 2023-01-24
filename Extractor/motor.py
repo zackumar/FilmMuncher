@@ -2,13 +2,13 @@ import logging
 from threading import Thread
 
 import serial
+import serial.tools.list_ports
+
 import struct
-import time
 from queue import Queue
 
 
 class MotorController:
-
     def __init__(self):
 
         self.pico = None
@@ -19,14 +19,18 @@ class MotorController:
         self.queue = Queue()
         self.running = True
 
-    def start(self):
-        t = Thread(target=self.get, args=())
+    def getPorts(self):
+        return serial.tools.list_ports.comports()
+
+    def start(self, port=None):
+        t = Thread(target=self.get, args=(port,))
         t.start()
         return self
 
-    def get(self):
+    def get(self, port=None):
+
         self.pico = serial.Serial(
-            port='/dev/tty.usbmodem1201',
+            port="/dev/tty.usbmodem1201" if port == None else port,
             timeout=0.1,
             baudrate=115200,
             stopbits=serial.STOPBITS_ONE,
@@ -38,13 +42,11 @@ class MotorController:
         speed = 0
         direction = 0
 
-        while (self.running):
+        while self.running:
             (direction, speed) = self.queue.get()
-            self.pico.write(struct.pack(
-                self.structFormat, direction, speed))
+            self.pico.write(struct.pack(self.structFormat, direction, speed))
 
     def stop(self):
         self.running = False
-        self.pico.write(struct.pack(
-            self.structFormat, 0, 0))
+        self.pico.write(struct.pack(self.structFormat, 0, 0))
         self.pico.close()

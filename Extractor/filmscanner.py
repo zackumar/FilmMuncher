@@ -1,8 +1,8 @@
-import serial
 import pickle
 import logging
 import time
 import signal
+import sys
 
 import cv2
 
@@ -26,7 +26,6 @@ def close(signal=None, frame=None):
     motor.stop()
     camera.stopVideo()
     window.close()
-    exit(0)
 
 
 signal.signal(signal.SIGINT, close)
@@ -40,8 +39,8 @@ defaults = {
     "leftCrop": 0,
     "rightCrop": DEFAULT_WIDTH,
     "view": 0,
-    "cannyMin": 30.0,
-    "cannyMax": 60.0,
+    "cannyMin": 130.0,
+    "cannyMax": 160.0,
     "houghThresh": 130.0,
     "houghGap": 12.0,
     "lineLength": 50.0,
@@ -49,11 +48,14 @@ defaults = {
     "leftTarget": 45.0,
     "rightTarget": 45.0,
     "activeForPicture": 20.0,
+    "inactiveForPicture": 200.0,
+    "motorSpeed": 120,
 }
 
 try:
     logging.info("Loading settings...")
     defaults = pickle.load(open("./settings.pickle", "rb"))
+    logging.info("Loaded settings: ", defaults)
 except:
     logging.info("No settings found, using defaults.")
     pass
@@ -203,8 +205,33 @@ frame1 = [
             key="activeForPicture",
         ),
     ],
+    [
+        sg.Text("Inactive before picture"),
+        sg.Slider(
+            range=(0, 1000),
+            orientation="h",
+            size=(15, 15),
+            default_value=defaults["inactiveForPicture"],
+            key="inactiveForPicture",
+        ),
+    ],
     [sg.Checkbox("Take Pictures", default=False, key="takePictures")],
-    [sg.Button("Capture", size=(10, 1), pad=(5, 20))],
+    [sg.Button("Capture", size=(10, 1))],
+    [
+        sg.Text("Motor Speed"),
+        sg.Slider(
+            range=(0, 1000),
+            orientation="h",
+            size=(15, 15),
+            default_value=defaults["motorSpeed"],
+            key="motorSpeed",
+        ),
+    ],
+    [
+        sg.Button("<", key="motorLeft"),
+        sg.Button("Stop", key="motorStop"),
+        sg.Button(">", key="motorRight"),
+    ],
     [
         sg.Button("Save", size=(10, 1), pad=(5, 20)),
         sg.Button("Default", size=(10, 1), pad=(5, 20)),
@@ -212,8 +239,7 @@ frame1 = [
     ],
 ]
 
-frame2 = [
-    [sg.Image(filename="", key="image", size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
+frame2 = [[sg.Image(filename="", key="image", size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
 
 # Define the window's contents
 layout = [
@@ -229,11 +255,25 @@ window = sg.Window("Film Scanner", layout, location=(0, 0), finalize=True)
 camera = Camera(scalingFactor=0.5)
 camera.startVideo()
 
-motor = MotorController().start()
+motor = MotorController()
+ports = motor.getPorts()
+port = None
+for p in ports:
+    if "Pico" in p.description:
+        port = p
+        break
+if port is None:
+    logging.error("No Pico found")
+    sys.exit(1)
+
+logging.debug(port)
+
+motor.start(port)
 
 
 video = Extractor(
-    "udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000", camera, motor).start()
+    "udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000", camera, motor
+).start()
 
 
 while True:
@@ -248,6 +288,7 @@ while True:
 
     if event == sg.WINDOW_CLOSED or event == "Close":
         close()
+        break
 
     elif event == "Save":
         logging.debug("Saving settings")
@@ -257,6 +298,12 @@ while True:
 
     elif event == "Capture":
         camera.takePicture()
+    elif event == "motorLeft":
+        motor.queue.put((1, 300))
+    elif event == "motorRight":
+        motor.queue.put((-1, 300))
+    elif event == "motorStop":
+        motor.queue.put((0, 0))
 
     viewNum = values["view"]
     imgbytes = None
@@ -301,3 +348,6 @@ while True:
             ].tobytes()
 
     window["image"].update(data=imgbytes)
+
+window.close()
+sys.exit(0)
