@@ -29,15 +29,18 @@ class MotorController:
 
     def get(self, port=None):
 
-        self.pico = serial.Serial(
-            port="/dev/tty.usbmodem1201" if port == None else port,
-            timeout=0.1,
-            baudrate=115200,
-            stopbits=serial.STOPBITS_ONE,
-            bytesize=serial.EIGHTBITS,
-            parity=serial.PARITY_NONE,
-        )
-        logging.debug("Motor controller started")
+        try:
+            self.pico = serial.Serial(
+                port="/dev/tty.usbmodem1201" if port == None else port,
+                timeout=0.1,
+                baudrate=115200,
+                stopbits=serial.STOPBITS_ONE,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+            )
+        except Exception as e:
+            logging.error(f"Motor controller failed to start: {repr(e)}")
+            return
 
         speed = 0
         direction = 0
@@ -48,5 +51,7 @@ class MotorController:
 
     def stop(self):
         self.running = False
+        if not self.pico:
+            return
         self.pico.write(struct.pack(self.structFormat, 0, 0))
         self.pico.close()

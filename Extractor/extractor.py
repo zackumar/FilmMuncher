@@ -48,8 +48,13 @@ class Extractor:
         while not self.stopped:
             if not self.grabbed:
                 self.stop()
+                self.start()
             else:
                 (self.grabbed, self.frame) = self.stream.read()
+
+                if self.frame is None:
+                    continue
+
                 if self.values == {} or self.values == None:
                     continue
 
@@ -70,8 +75,8 @@ class Extractor:
                     continue
 
                 cropped = self.frame[
-                    values["topCrop"]: values["bottomCrop"],
-                    values["leftCrop"]: values["rightCrop"],
+                    values["topCrop"] : values["bottomCrop"],
+                    values["leftCrop"] : values["rightCrop"],
                 ]
 
                 cropCopy = 255 - cropped.copy()
@@ -80,9 +85,9 @@ class Extractor:
 
                 gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
-                edges = cv2.Canny(
-                    gray, values["cannyMin"], values["cannyMax"], apertureSize=3
-                )
+                cannyMin = values["cannyMin"]
+                cannyMax = values["cannyMax"]
+                edges = cv2.Canny(gray, cannyMin, cannyMax, apertureSize=3)
                 eDilate = cv2.dilate(edges, dKernel)
                 eErode = cv2.erode(eDilate, eKernel)
                 cdst = cv2.cvtColor(eErode, cv2.COLOR_GRAY2BGR)
@@ -167,8 +172,12 @@ class Extractor:
                     color = (0, 255, 0)
                     activeCount += 1
                     logging.debug(
-                        f'Active Count: {activeCount}, Inactive Count: {inactiveCount}')
-                    if activeCount >= values["activeForPicture"] and inactiveCount > values["inactiveForPicture"]:
+                        f"Active Count: {activeCount}, Inactive Count: {inactiveCount}"
+                    )
+                    if (
+                        activeCount >= values["activeForPicture"]
+                        and inactiveCount > values["inactiveForPicture"]
+                    ):
                         isPicture = True
                         inactiveCount = 0
 

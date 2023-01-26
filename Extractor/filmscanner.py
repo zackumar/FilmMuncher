@@ -5,26 +5,33 @@ import signal
 import sys
 
 import cv2
+import numpy as np
 
 import PySimpleGUI as sg
 from extractor import Extractor
 from camera import Camera
 from motor import MotorController
 
+from utils import *
+
 
 logging.basicConfig(
     level=logging.DEBUG,
-    format="%(asctime)s %(levelname)s %(thread)s:  %(message)s",
-    handlers=[logging.StreamHandler()],
+    format="%(asctime)s %(levelname)s:  %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("debug.log", mode="w")],
 )
 
 
-def close(signal=None, frame=None):
-    print("Close")
-    video.stop()
-    time.sleep(0.5)
-    motor.stop()
-    camera.stopVideo()
+def close():
+    logging.debug("Closing")
+
+    if video:
+        video.stop()
+        time.sleep(0.5)
+    if motor:
+        motor.stop()
+    if camera:
+        camera.stopVideo()
     window.close()
 
 
@@ -32,6 +39,18 @@ signal.signal(signal.SIGINT, close)
 
 DEFAULT_WIDTH = 960
 DEFAULT_HEIGHT = 640
+
+blank = np.zeros((640, 960, 3), np.uint8)
+cv2.putText(
+    blank,
+    "Waiting for video stream...",
+    (100, 100),
+    cv2.FONT_HERSHEY_SIMPLEX,
+    1,
+    (255, 255, 255),
+    2,
+    cv2.LINE_AA,
+)
 
 defaults = {
     "topCrop": 0,
@@ -60,8 +79,7 @@ except:
     logging.info("No settings found, using defaults.")
     pass
 
-sg.theme("Black")
-
+sg.theme("DarkGray13")
 
 frame1 = [
     [sg.Text("Video:", font=("Helvetica", 14))],
@@ -239,42 +257,80 @@ frame1 = [
     ],
 ]
 
-frame2 = [[sg.Image(filename="", key="image", size=(DEFAULT_WIDTH, DEFAULT_HEIGHT))]]
+frame2 = [
+    [
+        sg.Image(
+            key="image",
+            data=(cv2.imencode(".png", cv2.resize(blank, (960, 640)))[1].tobytes()),
+            size=(DEFAULT_WIDTH, DEFAULT_HEIGHT),
+        )
+    ]
+]
 
 # Define the window's contents
 layout = [
     [
-        sg.Frame("Controls", frame1, font=("Helvetica", 16)),
+        sg.Frame(
+            "Controls",
+            [
+                [
+                    sg.Column(
+                        frame1,
+                        scrollable=True,
+                        vertical_scroll_only=True,
+                        size=(None, DEFAULT_HEIGHT),
+                    )
+                ]
+            ],
+            font=("Helvetica", 16),
+        ),
         sg.Frame("Video", frame2, font=("Helvetica", 16)),
     ],
 ]
 
+isMock = len(sys.argv) > 1 and sys.argv[1] == "mock"
+if isMock:
+    logging.info("Using mock camera")
 
-window = sg.Window("Film Scanner", layout, location=(0, 0), finalize=True)
+window = sg.Window(
+    "Film Scanner",
+    layout,
+    icon=ICON,
+    finalize=True,
+)
 
-camera = Camera(scalingFactor=0.5)
-camera.startVideo()
+camera = Camera(scalingFactor=0.5, mock=isMock)
+
+if not camera.startVideo():
+    createErrorAndClose(
+        "No camera detected by gphoto2. Make sure your camera is supported by libghoto and try again.\nIt may help to power cycle your camera.",
+        "No Camera",
+        camera.stopVideo,
+        [sg.Text('You can also use a mock camera by passing "mock" as an argument')],
+    )
 
 motor = MotorController()
 ports = motor.getPorts()
 port = None
 for p in ports:
     if "Pico" in p.description:
-        port = p
+        port = p.device
         break
 if port is None:
-    logging.error("No Pico found")
-    sys.exit(1)
+    logging.error("No serial device found")
+    port = createError(
+        "No serial device found. Please connect a serial device and try again.\nOtherwise you can continue without a motor controller and manually push film",
+        "No Serial Device Found",
+        func=camera.stopVideo,
+        layout=[sg.Text("If using a mock port, enter here:"), sg.Input(key="port")],
+    )["port"]
 
 logging.debug(port)
-
 motor.start(port)
-
 
 video = Extractor(
     "udp://127.0.0.1:8080/feed.mjpg?fifo_size=10000000", camera, motor
 ).start()
-
 
 while True:
     event, values = window.read(timeout=10)
@@ -295,6 +351,10 @@ while True:
         pickle.dump(
             values, open("./settings.pickle", "wb+"), protocol=pickle.HIGHEST_PROTOCOL
         )
+
+    elif event == "Default":
+        for key in defaults:
+            window[key].update(defaults[key])
 
     elif event == "Capture":
         camera.takePicture()
