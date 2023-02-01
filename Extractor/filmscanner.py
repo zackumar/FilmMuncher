@@ -1,13 +1,14 @@
-import pickle
 import logging
 import time
 import signal
 import sys
+import os
 
+import yaml
 import cv2
 import numpy as np
-
 import PySimpleGUI as sg
+
 from extractor import Extractor
 from camera import Camera
 from motor import MotorController
@@ -32,7 +33,6 @@ def close():
         motor.stop()
     if camera:
         camera.stopVideo()
-    window.close()
 
 
 signal.signal(signal.SIGINT, close)
@@ -72,17 +72,32 @@ defaults = {
     "motorCCW": False,
 }
 
+sg.theme("DarkGray13")
+
+lastSettings = sg.user_settings_get_entry("last_settings")
+
 try:
     logging.info("Loading settings...")
-    defaults = pickle.load(open("./settings.pickle", "rb"))
+    defaults = yaml.safe_load(open(lastSettings, "r"))
     logging.info("Loaded settings: ", defaults)
 except:
     logging.info("No settings found, using defaults.")
     pass
 
-sg.theme("DarkGray13")
 
 frame1 = [
+    [
+        sg.FileBrowse(
+            "Load Settings",
+            key="loadSettings",
+            target="loadSettings",
+            file_types=(("YAML Files", "*.yaml"),),
+            enable_events=True,
+        ),
+        sg.Text(
+            os.path.split(lastSettings)[1] if lastSettings else "", key="settingsFile"
+        ),
+    ],
     [sg.Text("Video:", font=("Helvetica", 14))],
     [sg.Text("Crop:", font=("Helvetica", 14))],
     [
@@ -253,7 +268,14 @@ frame1 = [
         sg.Button(">", key="motorRight"),
     ],
     [
-        sg.Button("Save", size=(10, 1), pad=(5, 20)),
+        sg.FileSaveAs(
+            "Save Settings",
+            file_types=(("YAML", "*.yaml"),),
+            target="saveSettings",
+            key="saveSettings",
+            enable_events=True,
+            default_extension=".yaml",
+        ),
         sg.Button("Default", size=(10, 1), pad=(5, 20)),
         sg.Button("Close"),
     ],
@@ -346,13 +368,29 @@ while True:
 
     if event == sg.WINDOW_CLOSED or event == "Close":
         close()
+        logging.debug("Closing")
         break
 
-    elif event == "Save":
-        logging.debug("Saving settings")
-        pickle.dump(
-            values, open("./settings.pickle", "wb+"), protocol=pickle.HIGHEST_PROTOCOL
-        )
+    elif event == "loadSettings":
+        logging.info(f"Loading settings from {values['loadSettings']}")
+        sg.user_settings_set_entry("last_settings", values["loadSettings"])
+        window["settingsFile"].update(os.path.split(values["loadSettings"])[1])
+
+        settings = yaml.safe_load(open(values["loadSettings"], "r"))
+        for key in settings:
+            if key in defaults:
+                window[key].update(settings[key])
+
+    elif event == "saveSettings":
+        logging.info(f"Saving settings as {values['saveSettings']}")
+        sg.user_settings_set_entry("last_settings", values["saveSettings"])
+        window["settingsFile"].update(os.path.split(values["saveSettings"])[1])
+
+        # Don't need to save the file path to the settings file
+        filename = values.pop("saveSettings", None)
+        values.pop("loadSettings", None)
+
+        yaml.dump(values, open(filename, "w+"))
 
     elif event == "Default":
         for key in defaults:

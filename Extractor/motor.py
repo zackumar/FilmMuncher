@@ -37,16 +37,17 @@ class MotorController:
             logging.error(f"Motor controller failed to start: {repr(e)}")
             return
 
-        speed = 0
-        direction = 0
-
         while self.running:
             (direction, speed) = self.queue.get()
+
+            if speed == -1:
+                break
+
             self.pico.write(struct.pack(self.structFormat, direction, speed))
+
+        self.pico.write(struct.pack(self.structFormat, 0, 0))
+        self.pico.close()
 
     def stop(self):
         self.running = False
-        if not self.pico:
-            return
-        self.pico.write(struct.pack(self.structFormat, 0, 0))
-        self.pico.close()
+        self.queue.put((0, -1))
