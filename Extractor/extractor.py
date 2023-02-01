@@ -82,7 +82,6 @@ class Extractor:
                 cropCopy = 255 - cropped.copy()
 
                 blur = cv2.GaussianBlur(cropped, (5, 5), 0)
-
                 gray = cv2.cvtColor(blur, cv2.COLOR_BGR2GRAY)
 
                 cannyMin = values["cannyMin"]
@@ -98,7 +97,7 @@ class Extractor:
                     np.pi / 180,
                     int(values["houghThresh"]),
                     None,
-                    50,
+                    int(values["lineLength"]),
                     int(values["houghGap"]),
                 )
 
@@ -132,41 +131,41 @@ class Extractor:
                         lineLen = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
                         if abs(angle) > values["minAngle"]:
 
-                            if lineLen >= values["lineLength"]:
-                                possibleEdges.append(line)
-                                cv2.line(
-                                    cdst,
-                                    (x1, y1),
-                                    (x2, y2),
-                                    (0, 0, 255),
-                                    3,
-                                    cv2.LINE_AA,
-                                )
-                                cv2.line(
-                                    cropCopy,
-                                    (x1, y1),
-                                    (x2, y2),
-                                    (0, 0, 255),
-                                    3,
-                                    cv2.LINE_AA,
-                                )
+                            # if lineLen >= values["lineLength"]:
+                            possibleEdges.append(line)
+                            cv2.line(
+                                cdst,
+                                (x1, y1),
+                                (x2, y2),
+                                (0, 0, 255),
+                                3,
+                                cv2.LINE_AA,
+                            )
+                            cv2.line(
+                                cropCopy,
+                                (x1, y1),
+                                (x2, y2),
+                                (0, 0, 255),
+                                3,
+                                cv2.LINE_AA,
+                            )
 
-                                if (
-                                    x1 <= values["leftTarget"]
-                                    and x2 <= values["leftTarget"]
-                                ):
-                                    leftActive = True
-                                elif (
-                                    x1
-                                    >= values["rightCrop"]
-                                    - values["leftCrop"]
-                                    - values["rightTarget"]
-                                    and x2
-                                    >= values["rightCrop"]
-                                    - values["leftCrop"]
-                                    - values["rightTarget"]
-                                ):
-                                    rightActive = True
+                            if (
+                                x1 <= values["leftTarget"]
+                                and x2 <= values["leftTarget"]
+                            ):
+                                leftActive = True
+                            elif (
+                                x1
+                                >= values["rightCrop"]
+                                - values["leftCrop"]
+                                - values["rightTarget"]
+                                and x2
+                                >= values["rightCrop"]
+                                - values["leftCrop"]
+                                - values["rightTarget"]
+                            ):
+                                rightActive = True
 
                 if leftActive and rightActive:
                     color = (0, 255, 0)
@@ -190,7 +189,12 @@ class Extractor:
                         self.camera.takePicture()
                         self.stream = cv2.VideoCapture(self.src)
 
-                        self.motor.queue.put((1, int(values["motorSpeed"])))
+                        self.motor.queue.put(
+                            (
+                                1 if not values["motorCCW"] else -1,
+                                int(values["motorSpeed"]),
+                            )
+                        )
 
                 else:
                     isPicture = False

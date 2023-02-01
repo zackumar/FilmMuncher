@@ -58,17 +58,18 @@ defaults = {
     "leftCrop": 0,
     "rightCrop": DEFAULT_WIDTH,
     "view": 0,
-    "cannyMin": 130.0,
+    "cannyMin": 45,
     "cannyMax": 160.0,
     "houghThresh": 130.0,
     "houghGap": 12.0,
     "lineLength": 50.0,
     "minAngle": 87.0,
-    "leftTarget": 45.0,
-    "rightTarget": 45.0,
+    "leftTarget": 50.0,
+    "rightTarget": 50.0,
     "activeForPicture": 20.0,
     "inactiveForPicture": 200.0,
-    "motorSpeed": 120,
+    "motorSpeed": 200,
+    "motorCCW": False,
 }
 
 try:
@@ -245,6 +246,7 @@ frame1 = [
             key="motorSpeed",
         ),
     ],
+    [sg.Checkbox("Motor CCW", default=defaults["motorCCW"], key="motorCCW")],
     [
         sg.Button("<", key="motorLeft"),
         sg.Button("Stop", key="motorStop"),

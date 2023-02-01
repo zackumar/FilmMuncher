@@ -32,11 +32,6 @@ class MotorController:
         try:
             self.pico = serial.Serial(
                 port="/dev/tty.usbmodem1201" if port == None else port,
-                timeout=0.1,
-                baudrate=115200,
-                stopbits=serial.STOPBITS_ONE,
-                bytesize=serial.EIGHTBITS,
-                parity=serial.PARITY_NONE,
             )
         except Exception as e:
             logging.error(f"Motor controller failed to start: {repr(e)}")

@@ -50,11 +50,11 @@ while True:
         window["motorRight"].update(disabled=False)
 
     if event == "motorLeft":
-        motor.queue.put((1, 400))
+        motor.queue.put((1, 500))
     if event == "motorStop":
         motor.queue.put((0, 0))
         print("Motor Stop")
     if event == "motorRight":
-        motor.queue.put((-1, 300))
+        motor.queue.put((-1, 400))
 
 window.close()
